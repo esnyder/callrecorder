@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string-array name="audio_source_options">
+    <item>MIC</item>
+    <item>VOICE_CALL</item>
+    <item>VOICE_UPLINK</item>
+    <item>VOICE_DOWNLINK</item>
+  </string-array>
+
+  <string-array name="audio_source_values">
+    <item>1</item>
+    <item>4</item>
+    <item>2</item>
+    <item>3</item>
+  </string-array>
+
+  <string-array name="audio_format_options">
+    <item>MPEG_4</item>
+    <item>RAW_AMR</item>
+    <item>THREE_GPP</item>
+  </string-array>
+
+  <string-array name="audio_format_values">
+    <item>2</item>
+    <item>3</item>
+    <item>1</item>
+  </string-array>
+
+</resources>
+
