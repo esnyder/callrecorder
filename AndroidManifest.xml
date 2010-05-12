@@ -4,14 +4,19 @@
       android:versionCode="1"
       android:versionName="1.0">
 
+    <uses-sdk android:minSdkVersion="4"/>
+
+    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 
     <application android:label="@string/app_name" android:icon="@drawable/icon">
-        <receiver android:name=".PhoneStateReceiver"
+        <receiver android:name=".CallBroadcastReceiver"
                   android:enabled="true"
                   android:exported="true">
           <intent-filter>
+            <action android:name="android.intent.action.NEW_OUTGOING_CALL" />
             <action android:name="android.intent.action.PHONE_STATE" />
             <!-- <category android:name="android.intent.category.LAUNCHER" /> -->
           </intent-filter>
@@ -19,6 +24,14 @@
 
         <activity android:name=".CallRecorder"
                   android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".CallPlayer"
+                  android:label="CallPlayer">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

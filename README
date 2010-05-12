@@ -1,0 +1,64 @@
+CallRecorder -- Toy project to learn about Android programming.
+
+Thread about VOICE_CALL not getting both sides of conversation:
+http://code.google.com/p/android/issues/detail?id=2117
+
+Prior to API v4 the possible audio source for recording audio on the
+handset was limited to the microphone; in order to do call recording
+people resorted to putting the phone in speakerphone mode and just
+accepting the crappy recording quality.
+
+API v4 introduced 3 new sources:
+
+VOICE_UPLINK
+VOICE_DOWNLINK
+VOICE_CALL
+
+which are supposed to provide what you might expect from the names:
+what you're saying, what the person on the other end is saying, or
+both together respectively.
+
+From what I can tell VOICE_CALL didn't actually work right in v4
+(various complaints in the referenced thread and other conversations
+online, and the emulator barfs when trying to record from VOICE_CALL
+for v4 image but not with later versions.)
+
+At this point I need to play with some real hardware at different SDK
+levels to get some real data on that issue.  I had the bright idea to
+try recording from UPLINK and DOWNLINK simultaneously on different
+threads and mix in software; but I don't know if that will work (or be
+necessary) without being able to test on real handsets.
+
+Other things I would like to try out with this testbed:
+
+* Speex encoding by using NDK to build libspeex for ARM and use the
+  AudioRecord class rather than MediaRecorder to get raw PCM data to
+  feed it.  (Need libogg too?)
+
+* Is it possible to selectively replace the call log part of the built
+  in phone stuff with our own to present recording info in the normal
+  call log?
+
+* Do encryption (bouncy castle?  openssh/openssl via NDK?) with public
+  key protocols so that people can't listen to the call records just
+  by getting the handset if you choose not to keep the private key on
+  it.  Also, you could encrypt where you don't have the private key at
+  all (using your lawyers key?)
+
+* Either use the built in voice recognition or something server side
+  to do transcripts/searchability.  Make sure to use location data in
+  search stuff as well (ie. search all conversations I had at the
+  Library in June kind of thing.)  If it works reasonably well add more
+  focus on voice memo and general recording from the mic.
+
+* Use location data to auto-warn people when they are recording in a
+  (US) state which requires both sides of the conversation to consent
+  to recording.
+
+* More useful recording player component (slider bar to scrub around
+  the conversation, make notes associated with the call/particular
+  time in the call, etc.)
+
+* Make the UI/configs not suck (default app activity showing icon menu
+  + call log, config to exclude/include specific phone numbers,
+  reasonable file naming, etc..
