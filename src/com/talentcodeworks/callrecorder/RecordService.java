@@ -3,6 +3,8 @@ package com.talentcodeworks.callrecorder;
 import java.io.File;
 import java.io.IOException;
 import java.lang.Exception;
+import java.util.Date;
+import java.text.SimpleDateFormat;
 
 import android.os.IBinder;
 import android.app.Service;
@@ -17,24 +19,59 @@ import android.media.MediaRecorder;
 import android.widget.Toast;
 import android.util.Log;
 
+//import java.security.KeyPairGenerator;
+//import java.security.KeyPair;
+//import java.security.Key;
+
+import java.io.InputStream;
+import java.io.FileInputStream;
+import java.util.Iterator;
+
 public class RecordService 
     extends Service
     implements MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener
 {
+    public static final String DEFAULT_STORAGE_LOCATION = "/sdcard/callrecorder";
+
     private static final int RECORDING_NOTIFICATION_ID = 1;
 
     private MediaRecorder recorder = null;
+    private boolean isRecording = false;
     private File recording = null;;
+
+    /*
+    private static void test() throws java.security.NoSuchAlgorithmException
+    {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        KeyPair kp = kpg.genKeyPair();
+        Key publicKey = kp.getPublic();
+        Key privateKey = kp.getPrivate();
+    }
+    */
 
     private File makeOutputFile (SharedPreferences prefs)
     {
-        File dir = new File("/sdcard");
-        // test dir for writeability
+        File dir = new File(DEFAULT_STORAGE_LOCATION);
+
+        // test dir for existence and writeability
+        if (!dir.exists()) {
+            try {
+                dir.mkdirs();
+            } catch (Exception e) {
+                Log.e("CallRecorder", "RecordService::makeOutputFile unable to create directory " + dir + ": " + e);
+                Toast t = Toast.makeText(getApplicationContext(), "CallRecorder was unable to create the directory " + dir + " to store recordings: " + e, Toast.LENGTH_LONG);
+                t.show();
+                return null;
+            }
+        }
 
         // test size
 
         // create filename based on call data
-        String prefix = "callrecord";
+        String prefix = "call";
+        //SimpleDateFormat sdf = new SimpleDateFormat("yyyy-mm-dd_HH:MM:SS");
+        //prefix = sdf.format(new Date()) + "-callrecording";
 
         // create suffix based on format
         String suffix = "";
@@ -69,13 +106,15 @@ public class RecordService
     }
 
     public void onStart(Intent intent, int startId) {
-        Log.i("CallRecorder", "RecordService::onStart calling through to onStartCommand");
-        onStartCommand(intent, 0, startId);
-    }
+        //Log.i("CallRecorder", "RecordService::onStart calling through to onStartCommand");
+        //onStartCommand(intent, 0, startId);
+        //}
 
-    public int onStartCommand(Intent intent, int flags, int startId)
-    {
-        Log.i("CallRecorder", "RecordService::onStartCommand called");
+        //public int onStartCommand(Intent intent, int flags, int startId)
+        //{
+        Log.i("CallRecorder", "RecordService::onStartCommand called while isRecording:" + isRecording);
+
+        if (isRecording) return;
 
         Context c = getApplicationContext();
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(c);
@@ -83,7 +122,8 @@ public class RecordService
         Boolean shouldRecord = prefs.getBoolean(Preferences.PREF_RECORD_CALLS, false);
         if (!shouldRecord) {
             Log.i("CallRecord", "RecordService::onStartCommand with PREF_RECORD_CALLS false, not recording");
-            return START_STICKY;
+            //return START_STICKY;
+            return;
         }
 
         int audiosource = Integer.parseInt(prefs.getString(Preferences.PREF_AUDIO_SOURCE, "1"));
@@ -92,20 +132,8 @@ public class RecordService
         recording = makeOutputFile(prefs);
         if (recording == null) {
             recorder = null;
-            return 0;
+            return; //return 0;
         }
-        /*
-        try {
-            recording = File.createTempFile("callrecord", ".3gpp", new File("/sdcard"));
-            Log.i("CallRecord", "RecordService onStartCommand with temp file " + recording);
-        } catch (IOException e) {
-            Log.e("CallRecorder", "RecordService::onStartCommand unable to create temp file in /sdcard: " + e);
-            Toast t = Toast.makeText(getApplicationContext(), "CallRecorder was unable to create temp file in /sdcard: " + e, Toast.LENGTH_LONG);
-            t.show();
-            recorder = null;
-            return 0; //START_STICKY;
-        }
-        */
 
         Log.i("CallRecorder", "RecordService will config MediaRecorder with audiosource: " + audiosource + " audioformat: " + audioformat);
         try {
@@ -133,11 +161,12 @@ public class RecordService
                 Toast t = Toast.makeText(getApplicationContext(), "CallRecorder was unable to start recording: " + e, Toast.LENGTH_LONG);
                 t.show();
                 recorder = null;
-                return 0; //START_STICKY;
+                return; //return 0; //START_STICKY;
             }
             Log.d("CallRecorder", "recorder.prepare() returned");
             
             recorder.start();
+            isRecording = true;
             Log.i("CallRecorder", "recorder.start() returned");
             updateNotification(true);
         } catch (java.lang.Exception e) {
@@ -148,16 +177,29 @@ public class RecordService
             recorder = null;
         }
 
-        return START_STICKY;
+        return; //return 0; //return START_STICKY;
     }
 
     public void onDestroy()
     {
         if (null != recorder) {
             Log.i("CallRecorder", "RecordService::onDestroy calling recorder.release()");
+            isRecording = false;
             recorder.release();
             Toast t = Toast.makeText(getApplicationContext(), "CallRecorder finished recording call to " + recording, Toast.LENGTH_LONG);
             t.show();
+
+            /*
+            // encrypt the recording
+            String keyfile = "/sdcard/keyring";
+            try {
+                //PGPPublicKey k = readPublicKey(new FileInputStream(keyfile));
+                test();
+            } catch (java.security.NoSuchAlgorithmException e) {
+                Log.e("CallRecorder", "RecordService::onDestroy crypto test failed: ", e);
+            }
+            //encrypt(recording);
+            */
         }
 
         updateNotification(false);
@@ -213,12 +255,14 @@ public class RecordService
     public void onInfo(MediaRecorder mr, int what, int extra)
     {
         Log.i("CallRecorder", "RecordService got MediaRecorder onInfo callback with what: " + what + " extra: " + extra);
+        isRecording = false;
     }
 
     // MediaRecorder.OnErrorListener
     public void onError(MediaRecorder mr, int what, int extra) 
     {
         Log.e("CallRecorder", "RecordService got MediaRecorder onError callback with what: " + what + " extra: " + extra);
+        isRecording = false;
         mr.release();
     }
 }
