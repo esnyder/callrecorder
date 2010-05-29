@@ -73,6 +73,10 @@ public class RecordService
         //SimpleDateFormat sdf = new SimpleDateFormat("yyyy-mm-dd_HH:MM:SS");
         //prefix = sdf.format(new Date()) + "-callrecording";
 
+        // add info to file name about what audio channel we were recording
+        int audiosource = Integer.parseInt(prefs.getString(Preferences.PREF_AUDIO_SOURCE, "1"));
+        prefix += "-channel" + audiosource + "-";
+
         // create suffix based on format
         String suffix = "";
         int audioformat = Integer.parseInt(prefs.getString(Preferences.PREF_AUDIO_FORMAT, "1"));
@@ -182,6 +186,8 @@ public class RecordService
 
     public void onDestroy()
     {
+        super.onDestroy();
+
         if (null != recorder) {
             Log.i("CallRecorder", "RecordService::onDestroy calling recorder.release()");
             isRecording = false;

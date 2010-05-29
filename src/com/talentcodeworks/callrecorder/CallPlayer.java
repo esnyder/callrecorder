@@ -78,7 +78,7 @@ public class CallPlayer
 
         try {
             player.reset();
-            player.setDataSource("/sdcard/" + fName);
+            player.setDataSource(RecordService.DEFAULT_STORAGE_LOCATION + "/" + fName);
             player.setLooping(false);
             player.prepare();
             player.start();
@@ -88,6 +88,7 @@ public class CallPlayer
     }
 
     public void onDestroy() {
+        super.onDestroy();
         if (player != null) {
             player.release();
         }
