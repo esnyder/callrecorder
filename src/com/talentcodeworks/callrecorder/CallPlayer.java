@@ -11,8 +11,7 @@ import android.content.SharedPreferences;
 import android.content.Intent;
 import android.content.Context;
 import android.content.SharedPreferences.Editor;
-import android.media.MediaRecorder;
-import android.media.MediaPlayer;
+import android.content.ComponentName;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.Spinner;
@@ -20,6 +19,8 @@ import android.widget.ArrayAdapter;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.content.ContentResolver;
+import android.database.Cursor;
 
 /*
   This is brain dead at the moment.  At a minimum I need to have the 
@@ -41,22 +42,46 @@ public class CallPlayer
     extends Activity
 {
     private Spinner fileSpinner = null;
-    private MediaPlayer player = null;
+    private String[] recordingNames = null;
+
+    private String[] loadRecordingsFromProvider() {
+        ContentResolver cr = getContentResolver();
+        Cursor c = cr.query(RecordingProvider.CONTENT_URI, null, null, null, null);
+        String[] names = new String[c.getCount()];
+        int i = 0;
+
+        if (c.moveToFirst()) {
+            do {
+                // Extract the recording names
+                names[i] = c.getString(RecordingProvider.DETAILS_COLUMN);
+                i++;
+            } while (c.moveToNext());
+        }
+
+        return names;
+    }
+
+    private String[] loadRecordingsFromDir() {
+        File dir = new File(RecordService.DEFAULT_STORAGE_LOCATION);
+        return dir.list();
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) 
     {
         super.onCreate(savedInstanceState);
+        recordingNames = new String[0];
         setContentView(R.layout.player);
 
-        player = new MediaPlayer();
-
-        File dir = new File(RecordService.DEFAULT_STORAGE_LOCATION);
         fileSpinner = (Spinner)findViewById(R.id.play_file_spinner);
-        
+
+        recordingNames = loadRecordingsFromDir();
+        // Once we switch from path to provider based storage, use this method
+        //recordingNames = loadRecordingsFromProvider();
+
         ArrayAdapter<CharSequence> fAdapter;
         Context context = getApplicationContext();
-        fAdapter = new ArrayAdapter<CharSequence>(context, android.R.layout.simple_spinner_item, dir.list());
+        fAdapter = new ArrayAdapter<CharSequence>(context, android.R.layout.simple_spinner_item, recordingNames);
         fileSpinner.setAdapter(fAdapter);
 
         Button b = (Button)findViewById(R.id.play_file_button);
@@ -73,24 +98,23 @@ public class CallPlayer
 
     private void playFile(String fName) {
         Log.i("CallPlayer", "playFile: " + fName);
-        if (player == null)
-            return;
 
-        try {
-            player.reset();
-            player.setDataSource(RecordService.DEFAULT_STORAGE_LOCATION + "/" + fName);
-            player.setLooping(false);
-            player.prepare();
-            player.start();
-        } catch (java.io.IOException e) {
-            Log.e("CallPlayer", "caught exception", e);
+        Context context = getApplicationContext();
+        Intent playIntent = new Intent(context, PlayService.class);
+        playIntent.putExtra(PlayService.EXTRA_FILENAME, RecordService.DEFAULT_STORAGE_LOCATION + "/" + fName);
+        ComponentName name = context.startService(playIntent);
+        if (null == name) {
+            Log.w("CallRecorder", "CallPlayer unable to start PlayService with intent: " + playIntent.toString());
+        } else {
+            Log.i("CallRecorder", "CallPlayer managed to start service: " + name);
         }
     }
 
     public void onDestroy() {
+        Context context = getApplicationContext();
+        Intent playIntent = new Intent(context, PlayService.class);
+        context.stopService(playIntent);
+
         super.onDestroy();
-        if (player != null) {
-            player.release();
-        }
     }
 }
