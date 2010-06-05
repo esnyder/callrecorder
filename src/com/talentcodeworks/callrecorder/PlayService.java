@@ -21,6 +21,7 @@ import android.app.PendingIntent;
 //import android.content.SharedPreferences;
 import android.content.Context;
 import android.content.Intent;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.widget.Toast;
 import android.util.Log;
@@ -31,7 +32,7 @@ import java.util.Iterator;
 
 public class PlayService 
     extends Service
-            // implements MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener
+    implements MediaPlayer.OnCompletionListener, MediaPlayer.OnInfoListener, MediaPlayer.OnErrorListener
 {
     private static String TAG = "CallRecorder";
 
@@ -48,6 +49,9 @@ public class PlayService
     {
         super.onCreate();
         player = new MediaPlayer();
+        player.setOnCompletionListener(this);
+        player.setOnInfoListener(this);
+        player.setOnErrorListener(this);
         Log.i(TAG, "PlayService::onCreate created MediaPlayer object");
     }
 
@@ -67,10 +71,11 @@ public class PlayService
         Log.i(TAG, "PlayService will play " + recording);
         try {
             player.reset();
+            player.setAudioStreamType(AudioManager.STREAM_VOICE_CALL);
             player.setDataSource(recording);
             player.setLooping(false);
             player.prepare();
-            Log.d(TAG, "player.prepare() returned");            
+            Log.d(TAG, "PlayService player.prepare() returned");            
             player.start();
 
             isPlaying = true;
@@ -97,8 +102,6 @@ public class PlayService
             Log.i(TAG, "PlayService::onDestroy calling player.release()");
             isPlaying = false;
             player.release();
-            Toast t = Toast.makeText(getApplicationContext(), "CallRecorder finished recording call to " + recording, Toast.LENGTH_LONG);
-            t.show();
         }
 
         //updateNotification(false);
@@ -150,20 +153,28 @@ public class PlayService
             mNotificationManager.cancel(RECORDING_NOTIFICATION_ID);
         }
     }
-
-    // MediaRecorder.OnInfoListener
-    public void onInfo(MediaRecorder mr, int what, int extra)
-    {
-        Log.i(TAG, "PlayService got MediaRecorder onInfo callback with what: " + what + " extra: " + extra);
-        isPlaying = false;
-    }
-
-    // MediaRecorder.OnErrorListener
-    public void onError(MediaRecorder mr, int what, int extra) 
-    {
-        Log.e(TAG, "PlayService got MediaRecorder onError callback with what: " + what + " extra: " + extra);
-        isPlaying = false;
-        mr.release();
-    }
     */
+
+    // MediaPlayer.OnCompletionListener
+    public void onCompletion(MediaPlayer mp)
+    {
+        Log.i(TAG, "PlayService got MediaPlayer onCompletion callback");
+        isPlaying = false;
+    }
+
+    // MediaPlayer.OnInfoListener
+    public boolean onInfo(MediaPlayer mp, int what, int extra)
+    {
+        Log.i(TAG, "PlayService got MediaPlayer onInfo callback with what: " + what + " extra: " + extra);
+        return false;
+    }
+
+    // MediaPlayer.OnErrorListener
+    public boolean onError(MediaPlayer mp, int what, int extra) 
+    {
+        Log.e(TAG, "PlayService got MediaPlayer onError callback with what: " + what + " extra: " + extra);
+        isPlaying = false;
+        mp.reset();
+        return true;
+    }
 }
