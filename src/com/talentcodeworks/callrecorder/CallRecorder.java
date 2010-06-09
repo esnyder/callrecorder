@@ -24,7 +24,7 @@ public class CallRecorder
 
     private static final int SHOW_PREFERENCES = 1;
 
-    private static final String[] TABS = { "Preferences", "CallPlayer" };
+    private static final String[] TABS = { "Preferences", "CallLog" };
 
     @Override
     public void onCreate(Bundle savedInstanceState) 

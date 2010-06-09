@@ -12,6 +12,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 
+
 public class RecordingProvider extends ContentProvider 
 {
     public static final Uri CONTENT_URI = Uri.parse("content://com.talentcodeworks.callrecorder/recordings");

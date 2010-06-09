@@ -31,8 +31,9 @@ public class RecordService
     extends Service
     implements MediaRecorder.OnInfoListener, MediaRecorder.OnErrorListener
 {
-    public static final String DEFAULT_STORAGE_LOCATION = "/sdcard/callrecorder";
+    private static final String TAG = "CallRecorder";
 
+    public static final String DEFAULT_STORAGE_LOCATION = "/sdcard/callrecorder";
     private static final int RECORDING_NOTIFICATION_ID = 1;
 
     private MediaRecorder recorder = null;
@@ -61,6 +62,13 @@ public class RecordService
             } catch (Exception e) {
                 Log.e("CallRecorder", "RecordService::makeOutputFile unable to create directory " + dir + ": " + e);
                 Toast t = Toast.makeText(getApplicationContext(), "CallRecorder was unable to create the directory " + dir + " to store recordings: " + e, Toast.LENGTH_LONG);
+                t.show();
+                return null;
+            }
+        } else {
+            if (!dir.canWrite()) {
+                Log.e(TAG, "RecordService::makeOutputFile does not have write permission for directory: " + dir);
+                Toast t = Toast.makeText(getApplicationContext(), "CallRecorder does not have write permission for the directory directory " + dir + " to store recordings", Toast.LENGTH_LONG);
                 t.show();
                 return null;
             }

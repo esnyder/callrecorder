@@ -10,13 +10,15 @@ import android.content.SharedPreferences.Editor;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.database.Cursor;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.View;
-import android.widget.ListView;
-import android.widget.ArrayAdapter;
-import android.widget.AdapterView;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.MediaController;
+import android.widget.Toast;
 
 /*
   This is brain dead at the moment.  At a minimum I need to have the 
@@ -36,83 +38,110 @@ import android.widget.AdapterView;
 
 public class CallPlayer
     extends Activity
+    implements MediaPlayer.OnPreparedListener, MediaPlayer.OnInfoListener, MediaPlayer.OnErrorListener, MediaPlayer.OnCompletionListener
 {
-    //private Spinner fileSpinner = null;
-    private ListView fileList = null;
-    private String[] recordingNames = null;
-
-    private String[] loadRecordingsFromProvider() {
-        ContentResolver cr = getContentResolver();
-        Cursor c = cr.query(RecordingProvider.CONTENT_URI, null, null, null, null);
-        String[] names = new String[c.getCount()];
-        int i = 0;
-
-        if (c.moveToFirst()) {
-            do {
-                // Extract the recording names
-                names[i] = c.getString(RecordingProvider.DETAILS_COLUMN);
-                i++;
-            } while (c.moveToNext());
-        }
-
-        return names;
-    }
-
-    private String[] loadRecordingsFromDir() {
-        File dir = new File(RecordService.DEFAULT_STORAGE_LOCATION);
-        return dir.list();
-    }
-
-    private class CallItemClickListener implements AdapterView.OnItemClickListener {
-        @Override
-        public void onItemClick(AdapterView<?> parent, View view, int position, long id) 
-        {
-            CharSequence s = (CharSequence)parent.getItemAtPosition(position);
-            Log.w("CallRecorder", "CallPlayer just got an item clicked: " + s);
-            playFile(s.toString());
-        }
-    }
+    private static final String TAG = "CallRecorder";
+    private AudioPlayerControl aplayer = null;
+    private MediaController controller = null;
+    private ViewGroup anchor = null;
 
     @Override
     public void onCreate(Bundle savedInstanceState) 
     {
         super.onCreate(savedInstanceState);
-        recordingNames = new String[0];
         setContentView(R.layout.player);
 
-        fileList = (ListView)findViewById(R.id.play_file_list);
+        anchor = (ViewGroup)findViewById(R.id.playerlayout);
 
-        recordingNames = loadRecordingsFromDir();
-        // Once we switch from path to provider based storage, use this method
-        //recordingNames = loadRecordingsFromProvider();
+        if (aplayer != null) {
+            Log.i(TAG, "CallPlayer onCreate called with aplayer already allocated, destroying old one.");
+            aplayer.destroy();
+            aplayer = null;
+        }
+        if (controller != null) {
+            Log.i(TAG, "CallPlayer onCreate called with controller already allocated, destroying old one.");
+            controller = null;
+        }
 
-        ArrayAdapter<CharSequence> fAdapter;
-        Context context = getApplicationContext();
-        fAdapter = new ArrayAdapter<CharSequence>(context, android.R.layout.simple_list_item_1, recordingNames);
-        //fAdapter.setOnItemClickListener(new CallItemClickListener());
-        fileList.setAdapter(fAdapter);
-        fileList.setOnItemClickListener(new CallItemClickListener());
-    }
+        Intent i = getIntent();
+        String path = i.getData().getEncodedPath();
 
-    private void playFile(String fName) {
-        Log.i("CallPlayer", "playFile: " + fName);
+        Log.i(TAG, "CallPlayer onCreate with data: " + path);
+        try {
+            aplayer = new AudioPlayerControl(path, this);
 
-        Context context = getApplicationContext();
-        Intent playIntent = new Intent(context, PlayService.class);
-        playIntent.putExtra(PlayService.EXTRA_FILENAME, RecordService.DEFAULT_STORAGE_LOCATION + "/" + fName);
-        ComponentName name = context.startService(playIntent);
-        if (null == name) {
-            Log.w("CallRecorder", "CallPlayer unable to start PlayService with intent: " + playIntent.toString());
-        } else {
-            Log.i("CallRecorder", "CallPlayer started service: " + name);
+            // creating the controller here fails.  Have to do it once our onCreate has finished?
+            // do it in the onPrepared listener for the actual MediaPlayer
+        } catch (java.io.IOException e) {
+            Log.e(TAG, "CallPlayer onCreate failed while creating AudioPlayerControl", e);
+            Toast t = Toast.makeText(this, "CallPlayer received error attempting to create AudioPlayerControl: " + e, Toast.LENGTH_LONG);
+            t.show();
+            finish();
         }
     }
 
     public void onDestroy() {
-        Context context = getApplicationContext();
-        Intent playIntent = new Intent(context, PlayService.class);
-        context.stopService(playIntent);
-
+        Log.i(TAG, "CallPlayer onDestroy");
+        if (aplayer != null) {
+            aplayer.destroy();
+            aplayer = null;
+        }
         super.onDestroy();
+    }
+
+    private class MyMediaController extends MediaController
+    {
+        public MyMediaController(Context c, boolean ff) {
+            super(c, ff);
+        }
+
+        // somehow, this causes the activity to be un-exitable
+        //public void hide() {
+        //    Log.d(TAG, "MyMediaController turning hide() into no-op");
+        //}
+
+        // but we can't do this because we don't have access to the mHandler object
+        //public void show(int timeout) {
+        //    super.show(timeout);
+        //    // never auto disappear
+        //    mHandler.removeMessages(FADE_OUT);
+        //}
+    }
+
+    // MediaPlayer.OnPreparedListener
+    public void onPrepared(MediaPlayer mp)
+    {
+        Log.i(TAG, "CallPlayer onPrepared about to construct MediaController object");
+        controller = new MediaController(this, true); // enble fast forward
+        //controller = new MyMediaController(this, true); // enble fast forward
+        //controller = new MediaController(getApplicationContext()); // why is useing 'this' different than 'getApplicationContext()' ?
+
+        controller.setMediaPlayer(aplayer);
+        controller.setAnchorView(anchor);
+        controller.setEnabled(true);
+        controller.show(0); //aplayer.getDuration());
+        
+        // controller disappears after 3 seconds no matter what... set timer to handle re-showing it?
+    }
+
+    public boolean onInfo(MediaPlayer mp, int what, int extra)
+    {
+        Log.i(TAG, "CallPlayer onInfo with what " + what + " extra " + extra);
+        return false;
+    }
+
+    public boolean onError(MediaPlayer mp, int what, int extra)
+    {
+        Log.e(TAG, "CallPlayer onError with what " + what + " extra " + extra);
+        Toast t = Toast.makeText(this, "CallPlayer received error (what:" + what + " extra:" + extra + ") from MediaPlayer attempting to play ", Toast.LENGTH_LONG);
+        t.show();
+        finish();
+        return true;
+    }
+
+    public void onCompletion(MediaPlayer mp)
+    {
+        Log.i(TAG, "CallPlayer onCompletion, finishing activity");
+        finish();
     }
 }
