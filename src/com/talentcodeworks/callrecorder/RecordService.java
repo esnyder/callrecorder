@@ -77,9 +77,9 @@ public class RecordService
         // test size
 
         // create filename based on call data
-        String prefix = "call";
-        //SimpleDateFormat sdf = new SimpleDateFormat("yyyy-mm-dd_HH:MM:SS");
-        //prefix = sdf.format(new Date()) + "-callrecording";
+        //String prefix = "call";
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss-SS");
+        String prefix = sdf.format(new Date());
 
         // add info to file name about what audio channel we were recording
         int audiosource = Integer.parseInt(prefs.getString(Preferences.PREF_AUDIO_SOURCE, "1"));
